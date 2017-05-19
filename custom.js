@@ -1,20 +1,29 @@
+var letHover = false;
+
 $(document).ready(function() {
 	var wins = [[0,1,2], [3,4,5], [6,7,8],
 				[0,3,6], [1,4,7], [2,5,8],
 				[0,4,8], [2,4,6]];
+	var choice = "You will be <br>"; 
+	choice += "<input type='radio' name='choice' value='x'> X";
+	choice += "<br>";
+	choice += "<input type='radio' name='choice' value='o'> O"; 
+	choice += "<br>";
+	choice += "<button id='ok'>Ok</button>";
 	var currentGame = new Game();
 	var playerX = new Player();
 	var playerO = new Player();
 
 	$(".play button").on("click", function() {
 		currentGame.clearGame();
-		currentGame.currentStep = "X";
+		$("#alert span").html(choice);
+		$("#alert").show();
 	});
 
 	$(".item").hover(
 		function() {
 			var count = $(this).index(".item");
-			if (currentGame.currentStep) {
+			if (letHover) {
 				if (currentGame.cells[count])
 					return;
 				$(this).text(currentGame.currentStep);	
@@ -22,7 +31,7 @@ $(document).ready(function() {
 		}, 
 		function() {
 			var count = $(this).index(".item");
-			if (currentGame.currentStep) {
+			if (letHover) {
 				if (currentGame.cells[count])
 					return;
 				$(this).text("");	
@@ -32,33 +41,41 @@ $(document).ready(function() {
 
 	$(".item").on("click", function() {
 		var count = $(this).index(".item");
-		if (currentGame.currentStep && !currentGame.cells[count]) {
-			if (currentGame.currentStep == "X") {
-				playerX.addStep(count);
-			} else {
-				playerO.addStep(count);
-			}
-			$(this).text(currentGame.currentStep);
-			currentGame.cells[count] = currentGame.currentStep;
-			if (currentGame.checkEnd()) {
-				currentGame.endGame();
-			} else {
-				currentGame.currentStep = 
-					currentGame.currentStep == "X" ? "O" : "X";
-			}
+		if (letHover && !currentGame.cells[count]) {
+			letHover = false;
+			currentGame.fixStep(count);
 		}
 	});
 
-	$("#alert button").on("click", function() {
+	$("#alert").on("click", "button", function() {
+		var x, o;
+		if ($(this).attr("id") === "ok") {
+			x = $("input[name='choice'][value='x']").is(":checked");
+			o = $("input[name='choice'][value='o']").is(":checked");
+			if (x) {
+				playerX.user = true;
+				playerO.user = false;
+			} else if (o) {
+				playerX.user = false;
+				playerO.user = true;
+			} else {
+				return;
+			}
+			currentGame.currentStep = "X";
+			currentGame.doStep();
+		}
+		if ($(this).attr("id") === "close") {
+			currentGame.clearGame();
+		}
 		$("#alert").hide();
-		currentGame.clearGame();
 	});
 
 	function Game() {
-		this.currentStep = 0,
+		this.currentStep = "",
 		this.cells = ["", "", "", "", "", "", "", "", ""],
 
 		this.clearGame = function(){
+			this.currentStep = "";
 			playerX.steps = [];
 			playerO.steps = [];
 			this.cells = ["", "", "", "", "", "", "", "", ""];
@@ -66,7 +83,7 @@ $(document).ready(function() {
 		},
 
 		this.checkEnd = function() {
-			var result;
+			var result = false;
 			if (this.currentStep == "X") {
 				result = playerX.checkStep();
 				if (result) this.finish = "Player X won!";
@@ -76,19 +93,57 @@ $(document).ready(function() {
 			}
 			var cond = 
 			(playerX.steps.length + playerO.steps.length == 9);
-			if (cond) this.finish = "Draw...";
+			if (cond && (!result)) this.finish = "Draw...";
 			return result || cond;
 		},
 
 		this.endGame = function() {
+			var str = this.finish;
+			str += "<br>";
+			str += "<button id='close'>Ok</button>";
 			$("#alert").show();
-			$("#alert span").text(this.finish);
-			this.currentStep = 0;
+			$("#alert span").html(str);
+		},
+
+		this.doStep = function() {
+			var curPlayer, otherPlayer, count;
+			if (this.currentStep === "X") {
+				curPlayer = playerX;
+				otherPlayer = playerO;
+			}
+			else {
+				curPlayer = playerO;
+				otherPlayer = playerX;
+			}
+			if (!curPlayer.user) {
+				count = computer(curPlayer.steps, otherPlayer.steps);
+				this.fixStep(count);
+			} else {
+				letHover = true;
+			}
+		},
+
+		this.fixStep = function(value) {
+			if (this.currentStep == "X") {
+				playerX.addStep(value);
+			} else {
+				playerO.addStep(value);
+			}
+			$(".item").eq(value).text(this.currentStep);
+			this.cells[value] = this.currentStep;
+			if (this.checkEnd()) {
+				this.endGame();
+			} else {
+				this.currentStep = 
+					this.currentStep == "X" ? "O" : "X";
+				this.doStep();
+			}
 		}
 	}
 
 	function Player() {
 		this.steps = [],
+		this.user,
 		this.addStep = function(step) {
 			this.steps.push(step);
 		},
@@ -106,5 +161,59 @@ $(document).ready(function() {
 			}
 			return false;
 		}
+	}
+
+	function computer(arr1, arr2) {
+		var result, count1, count2;
+
+		for (var i = 0; i < 8; i++) {
+			count1 = 0;
+			count2 = 0;
+			for (var j = 0; j < 3; j++) {
+				if (arr1.indexOf(wins[i][j]) >= 0)  
+					count1++;
+				else 
+					result = wins[i][j];
+				if (arr2.indexOf(wins[i][j]) >= 0) count2++;
+			}
+			if (count1 === 2 & count2 === 0) {
+				return result;
+			}
+		}
+
+		for (var i = 0; i < 8; i++) {
+			count1 = 0;
+			count2 = 0;
+			for (var j = 0; j < 3; j++) {
+				if (arr1.indexOf(wins[i][j]) >= 0)  count1++;
+				if (arr2.indexOf(wins[i][j]) >= 0) 
+					count2++;
+				else
+					result = wins[i][j];
+			}
+			if (count1 === 0 & count2 === 2) {
+				return result;
+			}
+		}
+
+		for (var i = 0; i < 8; i++) {
+			count1 = 0;
+			count2 = 0;
+			for (var j = 0; j < 3; j++) {
+				if (arr1.indexOf(wins[i][j]) >= 0)  
+					count1++;
+				else 
+					result = wins[i][j];
+				if (arr2.indexOf(wins[i][j]) >= 0) count2++;
+			}
+			if (count1 === 1 & count2 === 0) {
+				return result;
+			}
+		}
+
+		result = Math.floor(Math.random() * 9);
+		while (arr1.indexOf(result) >= 0 || arr2.indexOf(result) >= 0)
+			result = Math.floor(Math.random() * 9);
+		return result;
 	}
 });

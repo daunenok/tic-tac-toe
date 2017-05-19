@@ -44,7 +44,7 @@ h1 {
 #alert {
 	box-sizing: border-box;
 	width: 300px;
-	height: 130px;
+	min-height: 130px;
 	position: absolute;
 	top: 240px;
 	left: 0;
@@ -55,7 +55,7 @@ h1 {
 	background-color: #fff;
 	text-align: center;
 	font-size: 200%;
-	padding-top: 20px;
+	padding: 20px 0;
 	display: none;
 }
 #alert button {
